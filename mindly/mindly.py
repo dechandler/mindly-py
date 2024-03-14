@@ -87,7 +87,6 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
         self.file_data['mindly.index']['sections'].append(section)
         self.mark_modified("mindly.index")
 
-        self.id_path[section_id] = [section_id]
         self.name_path[section_id] = [text]
         self.filename_by_id[section_id] = "mindly.index"
 
@@ -149,7 +148,6 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
 
         self.mark_modified(filename)
 
-        self.id_path[idea['identifier']] = [section_id, idea['identifier']]
         self.name_path[idea['identifier']] = [
             self.nodes[section_id]['text'], text
         ]
@@ -212,7 +210,6 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
 
         self.mark_modified(self.filename_by_id[parent_id])
 
-        self.id_path[idea_id] = self.id_path[parent_id] + [idea_id]
         self.name_path[idea_id] = self.name_path[parent_id] + [text]
         self.filename_by_id[idea_id] = filename
 
@@ -370,7 +367,7 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
           Data about how pieces fit together
           Keyed by node id
 
-        id_path, name_path, proxy_filenames
+        name_path, proxy_filenames
           Data about how nodes can be addressed
           Keyed by node id
 
@@ -379,7 +376,6 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
         self.nodes = {}
         self.structure = {'__root': []}
         self.proxy_filenames = []
-        self.id_path = {}
         self.name_path = {'__root': []}
         self.filename_by_id = {}
 
@@ -408,7 +404,6 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
 
         for section in self.file_data['mindly.index']['sections']:
             section_id = section['identifier']
-            self.id_path[section_id] = [section_id]
             self.name_path[section_id] = [section['text']]
 
             # Sections are children of imaginary '__root' node
@@ -493,7 +488,6 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
         node_id = node['identifier']
 
         nodes = {node_id: node}
-        self.id_path[node_id] = id_path
         self.name_path[node_id] = self.name_path[id_path[-2]] + [node['text']]
 
         if not node.get('ideas'):
