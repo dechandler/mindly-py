@@ -4,7 +4,7 @@ CLI interface
 """
 #import argparse
 import os
-#import sys
+import sys
 
 import yaml
 
@@ -125,3 +125,13 @@ class MindlyCli(CliInterface):
                 print(f"'{node_id}': {node_info}")
         elif args[0] == 'files':
             print(self.mindly.file_data)
+
+
+def main():
+    try:
+        MindlyCli(sys.argv[1:])
+        return 0
+    except KeyboardInterrupt:
+        return 1
+
+sys.exit(main())

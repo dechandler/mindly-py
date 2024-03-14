@@ -1,14 +1,7 @@
-#!/usr/bin/env python3
-"""
-
-
-"""
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 import sys
+from mindly.__main__ import main
 
-from mindly import MindlyCli
-
-try:
-    MindlyCli(sys.argv[1:])
-    sys.exit(0)
-except KeyboardInterrupt:
-    sys.exit(1)
+if __name__ == '__main__':
+    sys.exit(main())

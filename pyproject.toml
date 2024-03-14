@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mindly"
+version = "0.0.1"
+authors = [
+    { name="David Chandler", email="contact@dechandler.io" }
+]
+description = "Unofficial tooling to read and manipulate Mindly mind-map data"
+readme = "README.md"
+requires-python = ">3.9"
+classifiers = [
+    "Programming Language :: Python :: 3"
+]
+dependencies = [
+    "pyyaml"
+]
+
+
+[project.scripts]
+mindlycli = "mindly.__main__:main"
+
+
+[project.urls]
+"Code" = "https://github.com/dechandler/mindly-py"
+"Documentation" = "https://github.com/dechandler/mindly-py/blob/main/README.md"
+
