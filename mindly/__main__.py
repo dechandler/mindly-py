@@ -2,7 +2,7 @@
 CLI interface
 
 """
-#import argparse
+import argparse
 import os
 import sys
 
@@ -74,8 +74,12 @@ class MindlyCli(CliInterface):
         self.operations = {
             'print': {
                 'aka': ['ls'],
-                'handler': self.ls
-            }
+                'handler': self.print
+            },
+            'new-node': {
+                'aka': ['new'],
+                'handler': self.new_node
+            },
         }
         self.handle_args(args)
 
@@ -104,7 +108,18 @@ class MindlyCli(CliInterface):
 
         return config
 
-    def ls(self, args):
+
+    def _normalize_name_path_arg(self, name_path_arg):
+
+        if not name_path_arg:
+            return []
+
+        delimeter = name_path_arg[0]
+        return name_path_arg.split(delimeter)[1:]
+
+
+
+    def print(self, args):
         """
         Print the Mindly data in various formats
 
@@ -125,6 +140,50 @@ class MindlyCli(CliInterface):
                 print(f"'{node_id}': {node_info}")
         elif args[0] == 'files':
             print(self.mindly.file_data)
+
+
+    def new_node(self, args):
+        """
+        Create a new node
+
+        :param args: relevant argv to be parsed by argparse
+        :type args: list
+
+        """
+        parser = argparse.ArgumentParser(prog='mindly_new_node')
+        arg = parser.add_argument
+        arg("--parent-id")
+        arg("--parent-name-path")
+
+        arg("--text", required=True)
+        arg("--note", default="")
+        arg("--idea-type", default="")
+        arg("--color", default="")
+        arg("--color-theme-type", default="")
+        parsed_args = parser.parse_args(args=args)
+
+        base_dir = self.conf.get('mindly_data_dir')
+        self.mindly = Mindly(base_dir)
+
+        if parsed_args.parent_id:
+            parent_id = parsed_args.parent_id
+        elif parsed_args.parent_name_path:
+            normalized = self._normalize_name_path_arg(parsed_args.parent_name_path)
+            parent_id = self.mindly.get_node_id_by_name_path(normalized)
+        else:
+            parent_id = '__root'
+
+        print(self.mindly.new_node(
+            parent_id,
+            parsed_args.text,
+            note=parsed_args.note,
+            idea_type=parsed_args.idea_type,
+            color=parsed_args.color,
+            color_theme_type=parsed_args.color_theme_type
+        ))
+        self.mindly.write()
+
+
 
 
 def main():

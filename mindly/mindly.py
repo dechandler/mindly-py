@@ -11,7 +11,10 @@ import zlib
 
 from datetime import datetime, timezone
 
-from .exceptions import UnsupportedMindlyFileFormatVersion
+from .exceptions import ( UnsupportedMindlyFileFormatVersion,
+                          AmbiguousNamePath,
+                          NoSuchNodeError
+                        )
 
 class Mindly:  # pylint: disable=too-many-instance-attributes
     """
@@ -30,18 +33,184 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
 
         self.load_files()
 
-    def _gen_id(self) -> str:
+
+  # Methods for creating Mindly nodes
+
+    def new_node(self,  # pylint: disable=too-many-arguments
+        parent_id:str, text:str,
+        idea_type:str="", note:str="",
+        color:str="", color_theme_type:str=""
+    ) -> dict:
         """
-        Generates an id in the style of Mindly's native convention,
-        excepting that a random 3-digit int is used instead of Mindly's
-        incrementing index number
-
-        :returns: ID string
-        :rtype: str
+        Generic node creator
 
         """
-        return f"id{datetime.now().strftime("%s")}_{random.randint(100, 999)}"
+        parent_depth = len(self.name_path[parent_id])
+        if parent_depth == 0:
+            return self.new_section(text)
+        if parent_depth == 1:
+            return self.new_document(
+                text, section_id=parent_id, note=note, color=color
+            )
 
+        return self.new_idea(
+            parent_id,
+            text,
+            note=note,
+            idea_type=idea_type,
+            color=color,
+            color_theme_type=color_theme_type
+        )
+
+    def new_section(self, text:str) -> dict:
+        """
+        Creates a new section under the root node
+
+        :param text: Title for the new Section
+        :type text: str
+
+        :returns: dict of section info
+        :rtype: dict
+
+        """
+        section_id = self._gen_id()
+        section = {
+            'identifier': section_id,
+            'text': text
+        }
+        self.file_data['mindly.index']['sections'].append(section)
+        self.mark_modified("mindly.index")
+
+        self.id_path[section_id] = [section_id]
+        self.name_path[section_id] = [text]
+        self.filename_by_id[section_id] = "mindly.index"
+
+        return section
+
+    def new_document(self, text:str, section_id:str,
+        note:str="", color:str=""
+    ) -> dict:
+        """
+        Creates a new document under the specified section
+
+        :param text: Title/main node for the new document
+        :type text: str
+
+        :param section_id: ID of section to create the document under
+        :type section_id: str
+
+        :param note: Optional note for the node (Default: "")
+        :type note: str
+
+        :param color: Optional color for the node (Default: "blue0")
+        :type color: str
+
+        :returns: dict of document node info
+        :rtype: dict
+
+        """
+        now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S %z")
+        node_id = self._gen_id()
+        filename = f"{self._gen_id()}.mndl"
+
+        # Configure the proxy in the index
+        proxy = dict(self.proxy_defaults)
+        proxy.update({
+            'dateCreated': now,
+            'dateModified': now,
+            'itemCount': 1,
+            'identifier': node_id,
+            'section': section_id,
+            'filename': filename,
+            'text': text,
+            'color': color or self.proxy_defaults['color']
+        })
+        self.file_data['mindly.index']['proxies'].append(proxy)
+        self.proxy_filenames.append(filename)
+
+        # Configure the new document file and populate with root idea node
+        self.file_data[filename] = {
+            'fileFormatVersion': 4,
+            'dateCreated': now,
+            'dateModified': now
+        }
+        idea = dict(self.idea_defaults)
+        options = {'note': note, 'color': color}
+        idea.update({ k: v for k, v in options.items() if v })
+        idea.update({'text': text, 'identifier': node_id})
+        self.file_data[filename]['idea'] = idea
+        self.nodes[node_id] = idea
+
+        self.mark_modified(filename)
+
+        self.id_path[idea['identifier']] = [section_id, idea['identifier']]
+        self.name_path[idea['identifier']] = [
+            self.nodes[section_id]['text'], text
+        ]
+        self.filename_by_id[node_id] = filename
+
+        return self.file_data[filename]['idea']
+
+    def new_idea(self,  # pylint: disable=too-many-arguments
+        parent_id:str, text:str,
+        idea_type:str="", note:str="",
+        color:str="", color_theme_type:str=""
+    ) -> dict:
+        """
+        Creates an idea node under a document or other idea node
+
+        :param parent_id: ID of the parent node the new node is to be created under
+        :type parent_id: str
+
+        :param text: Title new idea node
+        :type text: str
+
+        :param note: Optional note for the node (Default: "")
+        :type note: str
+
+        :param color: Optional color for the node (Default: "blue0")
+        :type color: str
+
+        :returns: dict of new node info
+        :rtype: dict
+
+        """
+        if 'ideas' not in self.nodes[parent_id].keys():
+            self.nodes[parent_id]['ideas'] = []
+
+        idea_id = self._gen_id()
+        idea = {
+            'text': text,
+            'identifier': idea_id,
+            'note': note,
+            'ideaType': idea_type or self.idea_defaults['ideaType'],
+            'ideas': [],
+            'color': (
+                color
+                or self.nodes.get(parent_id, {}).get('color')
+                or self.idea_defaults['color']
+            ),
+            'colorThemeType': (
+                color_theme_type
+                or self.nodes.get(parent_id, {}).get('colorThemeType')
+                or self.idea_defaults['colorThemeType']
+            )
+        }
+        self.nodes[parent_id]['ideas'].append(idea)
+        self.nodes[idea_id] = idea
+
+        # Increment document item count in index
+        filename = self.filename_by_id[parent_id]
+        i = self.proxy_filenames.index(filename)
+        self.file_data['mindly.index']['proxies'][i]['itemCount'] += 1
+
+        self.mark_modified(self.filename_by_id[parent_id])
+
+        self.id_path[idea_id] = self.id_path[parent_id] + [idea_id]
+        self.name_path[idea_id] = self.name_path[parent_id] + [text]
+        self.filename_by_id[idea_id] = filename
+
+        return idea
 
 
   # Common operations for writing
@@ -92,6 +261,61 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
                 )))
 
         self.files_modified = {}
+
+    def _gen_id(self) -> str:
+        """
+        Generates an id in the style of Mindly's native convention,
+        excepting that a random 3-digit int is used instead of Mindly's
+        incrementing index number
+
+        :returns: ID string
+        :rtype: str
+
+        """
+        return f"id{datetime.now().strftime("%s")}_{random.randint(100, 999)}"
+
+
+  # Lookup methods
+
+    def get_node_id_by_name_path(self, name_path:list) -> str:
+        """
+        Get a single node matching name_path, and raise exceptions
+        if there are more or no results
+
+        :param name_path: list of node lineage
+        :type name_path: list
+
+        :returns: id of single node corresponding to path
+        :rtype: str
+
+        :raises AmbiguousNamePath: multiple nodes match the name path
+
+        :raises NoSuchNodeError: no matching nodes
+
+        """
+        matches = self.get_name_path_matches(name_path)
+        if len(matches) > 1:
+            raise AmbiguousNamePath(f"No duplicate names! {matches}")
+        if not matches:
+            raise NoSuchNodeError(f"No match for {name_path}")
+
+        return matches[0]
+
+    def get_name_path_matches(self, name_path: list) -> list:
+        """
+        Get all nodes matching the name path
+
+        :param name_path:
+        :type name_path: list
+
+        :returns: list of matching nodes
+
+        """
+        return [
+            node_id
+            for node_id, node_path in self.name_path.items()
+            if node_path == name_path
+        ]
 
   # Load files into internal state
 
