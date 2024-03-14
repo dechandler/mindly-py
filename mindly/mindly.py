@@ -22,7 +22,13 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
 
     """
     def __init__(self, data_dir:str|os.PathLike):
+        """
+        Set initial state, then load Mindly data
 
+        :param data_dir: path to Mindly data
+        :type data_dir: str|os.PathLike
+
+        """
         self.data_dir = data_dir
 
         # keys are filenames marked as having changes to be written

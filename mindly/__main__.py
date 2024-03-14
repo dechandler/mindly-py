@@ -30,11 +30,14 @@ class CliInterface:
         :type args: list
 
         """
+        # Add help operation
         self.operations['help'] = (
             self.operations.get('help')
             or {'handler': self.print_help}
         )
 
+        # Combine subcommand names and aka values to
+        # build a comprehensive operations spec
         subcommands = {}
         for name, op in self.operations.items():
             for op_name in op.get('aka', []) + [name]:
@@ -43,9 +46,14 @@ class CliInterface:
                     'handler': op['handler']
                 }
 
+        # If no matching subcommand, use the default
+        # operation and set it up to get all args
+        # passed to its handler
         if not args or args[0] not in subcommands:
             args = [self.default_operation] + args
 
+        # Remove the subcommand and pass the remaining
+        # args to the selected handler
         self.op_name = args.pop(0)  # pylint: disable=attribute-defined-outside-init
         subcommands[self.op_name]['handler'](args)
 
@@ -66,8 +74,19 @@ class MindlyCli(CliInterface):
     Load config and define main subcommands and their handlers
 
     """
-    def __init__(self, args):
+    help_message = """
+        mindlycli [print|new-node] <subcommand args>
 
+    """
+    def __init__(self, args):
+        """
+        Load config, load Mindly data,
+        setup operations, pass args to handler
+
+        :param args: arguments to mindlycli command
+        :type args: list
+
+        """
         self.conf = self._get_config()
         self.mindly = Mindly(self.conf.get('mindly_data_dir'))
 
@@ -109,8 +128,17 @@ class MindlyCli(CliInterface):
         return config
 
 
-    def _normalize_name_path_arg(self, name_path_arg):
+    def _normalize_name_path_arg(self, name_path_arg:str) -> list:
+        """
+        Convert a string version of name_path into the full list
+        The string is basically path-like - "/path/to/nodes and things"
+        But the first character is generically the delimter,
+          so this also works: "|path|to|nodes/things"
 
+        :param name_path_arg: string version of a name_path
+        :type name_path_arg: str
+
+        """
         if not name_path_arg:
             return []
 
@@ -119,7 +147,7 @@ class MindlyCli(CliInterface):
 
 
 
-    def print(self, args):
+    def print(self, args:list) -> None:
         """
         Print the Mindly data in various formats
 
@@ -142,9 +170,13 @@ class MindlyCli(CliInterface):
             print(self.mindly.file_data)
 
 
-    def new_node(self, args):
+    def new_node(self, args:list) -> None:
         """
-        Create a new node
+        Create a new node - section, document, or idea
+
+        If --parent-id and --parent-name-path are both
+        unspecified, parent will be the root node, so
+        creating a new section
 
         :param args: relevant argv to be parsed by argparse
         :type args: list
