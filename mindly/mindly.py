@@ -1,26 +1,144 @@
-#!/usr/bin/env python3
 """
-
-
+Core module for reading and manipulating Mindly files
 
 """
 import json
 import os
-import pathlib
+#import pathlib
 import random
-import sys
+#import sys
 import zlib
 
 from datetime import datetime, timezone
 
+from .exceptions import UnsupportedMindlyFileFormatVersion
 
-class Mindly:
+class Mindly:  # pylint: disable=too-many-instance-attributes
+    """
+    Object to load and manipulate Mindly data files
 
+    """
     def __init__(self, data_dir:str|os.PathLike):
 
         self.data_dir = data_dir
 
+        # keys are filenames marked as having changes to be written
+        self.files_modified = {}
+
+        self.file_data = {}
+        self.nodes = {}
+        self.structure = {'__root': []}
+        self.proxy_filenames = []
+        self.id_path = {}
+        self.name_path = {'__root': []}
+        self.filename_by_id = {}
+
+        self.proxy_defaults = {
+            'section': '',
+            'hasNote': False,
+            'hasWebLink': False,
+            'color': "blue0"
+        }
+        self.idea_defaults = {
+            'ideaType': 1,
+            'note': '',
+            'color': "blue0",
+            'colorThemeType': 0
+        }
+
+        self._set_defaults()
         self.load_files()
+
+    def _gen_id(self) -> str:
+        """
+        Generates an id in the style of Mindly's native convention,
+        excepting that a random 3-digit int is used instead of Mindly's
+        incrementing index number
+
+        :returns: ID string
+        :rtype: str
+
+        """
+        return f"id{datetime.now().strftime("%s")}_{random.randint(100, 999)}"
+
+
+
+
+
+
+
+
+
+
+    def mark_modified(self, filename:str) -> None:
+        """
+        Marks the filename as having changes that need to be written
+        to disk in the next call to Mindly.write()
+
+        The index is assumed for all changes
+
+        :param filename: Filename in base_dir
+        :type filename: str
+
+        """
+        self.files_modified[filename] = True
+        if filename == "mindly.index":
+            return
+
+        mtime = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S %z")
+        self.file_data[filename]['dateModified'] = mtime
+
+        pos = self.proxy_filenames.index(filename)
+        self.file_data["mindly.index"]['proxies'][pos]['dateModified'] = mtime
+
+        self.mark_modified("mindly.index")
+
+
+    def write(self) -> None:
+        """
+        Write staged changes to file
+
+        """
+        for filename in [ k for k, v in self.files_modified.items() if v ]:
+
+            document = self.file_data[filename]
+            path = os.path.join(self.data_dir, filename)
+
+            if filename == "mindly.index":
+                with open(path, 'w', encoding='utf-8') as fh:
+                    json.dump(document, fh)
+                    return
+
+            with open(path, 'wb') as fh:
+                fh.write(zlib.compress(bytes(
+                    json.dumps({
+                        'ideaDocumentDataObject': document
+                    }), 'utf-8'
+                )))
+
+        self.files_modified = {}
+
+
+
+
+
+
+
+
+    def _set_defaults(self) -> None:
+
+        self.proxy_defaults = {
+            'section': '',
+            'hasNote': False,
+            'hasWebLink': False,
+            'color': "blue0"
+        }
+        self.idea_defaults = {
+            'ideaType': 1,
+            'note': '',
+            'color': "blue0",
+            'colorThemeType': 0
+        }
 
     def load_files(self) -> None:
         """
@@ -74,7 +192,7 @@ class Mindly:
 
         """
         index_path = os.path.join(self.data_dir, "mindly.index")
-        with open(index_path) as fh:
+        with open(index_path, 'r', encoding='utf-8') as fh:
             self.file_data['mindly.index'] = json.load(fh)
 
         version = self.file_data['mindly.index'].get('fileFormatVersion')
@@ -112,9 +230,6 @@ class Mindly:
                this mirrors Mindly's behavior
 
         """
-        nodes = {}
-
-        # Get list from index
         for proxy in self.file_data['mindly.index']['proxies']:
             section_id = proxy.get('section', '')
             self.structure[section_id].append(proxy['identifier'])
@@ -152,9 +267,9 @@ class Mindly:
                 f"Ideas Version {version} not supported\nSupported Versions: [4]"
             )
 
-        nodes = self._extract_nodes(self.file_data[filename]['idea'], id_path)            
+        nodes = self._extract_nodes(self.file_data[filename]['idea'], id_path)
         self.filename_by_id.update({
-            node_id: filename for node_id in nodes.keys()
+            node_id: filename for node_id in nodes
         })
         return nodes
 
