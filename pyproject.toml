@@ -18,12 +18,9 @@ dependencies = [
     "pyyaml"
 ]
 
-
 [project.scripts]
 mindlycli = "mindly.__main__:main"
-
 
 [project.urls]
 "Code" = "https://github.com/dechandler/mindly-py"
 "Documentation" = "https://github.com/dechandler/mindly-py/blob/main/README.md"
-

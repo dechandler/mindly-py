@@ -128,6 +128,11 @@ class MindlyCli(CliInterface):
 
 
 def main():
+    """
+    Main function to be called by script file generated
+    in PATH during install
+
+    """
     try:
         MindlyCli(sys.argv[1:])
         return 0

@@ -25,28 +25,9 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
         # keys are filenames marked as having changes to be written
         self.files_modified = {}
 
-        self.file_data = {}
-        self.nodes = {}
-        self.structure = {'__root': []}
-        self.proxy_filenames = []
-        self.id_path = {}
-        self.name_path = {'__root': []}
-        self.filename_by_id = {}
-
-        self.proxy_defaults = {
-            'section': '',
-            'hasNote': False,
-            'hasWebLink': False,
-            'color': "blue0"
-        }
-        self.idea_defaults = {
-            'ideaType': 1,
-            'note': '',
-            'color': "blue0",
-            'colorThemeType': 0
-        }
-
         self._set_defaults()
+        self._reset_state()
+
         self.load_files()
 
     def _gen_id(self) -> str:
@@ -63,12 +44,7 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
 
 
 
-
-
-
-
-
-
+  # Common operations for writing
 
     def mark_modified(self, filename:str) -> None:
         """
@@ -92,7 +68,6 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
         self.file_data["mindly.index"]['proxies'][pos]['dateModified'] = mtime
 
         self.mark_modified("mindly.index")
-
 
     def write(self) -> None:
         """
@@ -118,12 +93,7 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
 
         self.files_modified = {}
 
-
-
-
-
-
-
+  # Load files into internal state
 
     def _set_defaults(self) -> None:
 
@@ -175,7 +145,6 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
           Keyed by node id
 
         """
-
         self.file_data = {}
         self.nodes = {}
         self.structure = {'__root': []}
@@ -183,7 +152,6 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
         self.id_path = {}
         self.name_path = {'__root': []}
         self.filename_by_id = {}
-
 
     def _load_index(self) -> None:
         """
