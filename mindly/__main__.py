@@ -74,10 +74,10 @@ class MindlyCli(CliInterface):
     Load config and define main subcommands and their handlers
 
     """
-    help_message = """
-        mindlycli [print|new-node] <subcommand args>
+    help_message = '\n'.join(["",
+        "mindlycli [print|new-node] <subcommand args>",
+    ""])
 
-    """
     def __init__(self, args):
         """
         Load config, load Mindly data,
@@ -128,22 +128,22 @@ class MindlyCli(CliInterface):
         return config
 
 
-    def _normalize_name_path_arg(self, name_path_arg:str) -> list:
+    def _normalize_path_arg(self, path_arg:str) -> list:
         """
-        Convert a string version of name_path into the full list
+        Convert a string version of path into the full list
         The string is basically path-like - "/path/to/nodes and things"
         But the first character is generically the delimter,
           so this also works: "|path|to|nodes/things"
 
-        :param name_path_arg: string version of a name_path
-        :type name_path_arg: str
+        :param path_arg: string version of a path
+        :type path_arg: str
 
         """
-        if not name_path_arg:
+        if not path_arg:
             return []
 
-        delimeter = name_path_arg[0]
-        return name_path_arg.split(delimeter)[1:]
+        delimeter = path_arg[0]
+        return path_arg.split(delimeter)[1:]
 
 
 
@@ -161,8 +161,8 @@ class MindlyCli(CliInterface):
             args.append('paths')
 
         if args[0] == 'paths':
-            for node_id, name_path in self.mindly.name_path.items():
-                print(f"'{node_id}': {name_path}")
+            for node_id, path in self.mindly.tree_paths.items():
+                print(f"'{node_id}': {path}")
         elif args[0] == 'nodes':
             for node_id, node_info in self.mindly.nodes.items():
                 print(f"'{node_id}': {node_info}")
@@ -174,7 +174,7 @@ class MindlyCli(CliInterface):
         """
         Create a new node - section, document, or idea
 
-        If --parent-id and --parent-name-path are both
+        If --parent-id and --parent-path are both
         unspecified, parent will be the root node, so
         creating a new section
 
@@ -185,7 +185,7 @@ class MindlyCli(CliInterface):
         parser = argparse.ArgumentParser(prog='mindly_new_node')
         arg = parser.add_argument
         arg("--parent-id")
-        arg("--parent-name-path")
+        arg("--parent-path")
 
         arg("--text", required=True)
         arg("--note", default="")
@@ -199,9 +199,9 @@ class MindlyCli(CliInterface):
 
         if parsed_args.parent_id:
             parent_id = parsed_args.parent_id
-        elif parsed_args.parent_name_path:
-            normalized = self._normalize_name_path_arg(parsed_args.parent_name_path)
-            parent_id = self.mindly.get_node_id_by_name_path(normalized)
+        elif parsed_args.parent_path:
+            normalized = self._normalize_path_arg(parsed_args.parent_path)
+            parent_id = self.mindly.get_node_id_by_path(normalized)
         else:
             parent_id = '__root'
 
@@ -214,9 +214,6 @@ class MindlyCli(CliInterface):
             color_theme_type=parsed_args.color_theme_type
         ))
         self.mindly.write()
-
-
-
 
 def main():
     """

@@ -51,7 +51,7 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
         Generic node creator
 
         """
-        parent_depth = len(self.name_path[parent_id])
+        parent_depth = len(self.tree_paths[parent_id])
         if parent_depth == 0:
             return self.new_section(text)
         if parent_depth == 1:
@@ -87,7 +87,7 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
         self.file_data['mindly.index']['sections'].append(section)
         self.mark_modified("mindly.index")
 
-        self.name_path[section_id] = [text]
+        self.tree_paths[section_id] = [text]
         self.filename_by_id[section_id] = "mindly.index"
 
         return section
@@ -148,7 +148,7 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
 
         self.mark_modified(filename)
 
-        self.name_path[idea['identifier']] = [
+        self.tree_paths[idea['identifier']] = [
             self.nodes[section_id]['text'], text
         ]
         self.filename_by_id[node_id] = filename
@@ -210,7 +210,7 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
 
         self.mark_modified(self.filename_by_id[parent_id])
 
-        self.name_path[idea_id] = self.name_path[parent_id] + [text]
+        self.tree_paths[idea_id] = self.tree_paths[parent_id] + [text]
         self.filename_by_id[idea_id] = filename
 
         return idea
@@ -280,13 +280,13 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
 
   # Lookup methods
 
-    def get_node_id_by_name_path(self, name_path:list) -> str:
+    def get_node_id_by_path(self, path:list) -> str:
         """
-        Get a single node matching name_path, and raise exceptions
+        Get a single node matching path, and raise exceptions
         if there are more or no results
 
-        :param name_path: list of node lineage
-        :type name_path: list
+        :param path: list of node lineage
+        :type path: list
 
         :returns: id of single node corresponding to path
         :rtype: str
@@ -296,28 +296,28 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
         :raises NoSuchNodeError: no matching nodes
 
         """
-        matches = self.get_name_path_matches(name_path)
+        matches = self.get_path_matches(path)
         if len(matches) > 1:
             raise AmbiguousNamePath(f"No duplicate names! {matches}")
         if not matches:
-            raise NoSuchNodeError(f"No match for {name_path}")
+            raise NoSuchNodeError(f"No match for {path}")
 
         return matches[0]
 
-    def get_name_path_matches(self, name_path: list) -> list:
+    def get_path_matches(self, path: list) -> list:
         """
         Get all nodes matching the name path
 
-        :param name_path:
-        :type name_path: list
+        :param path:
+        :type path: list
 
         :returns: list of matching nodes
 
         """
         return [
             node_id
-            for node_id, node_path in self.name_path.items()
-            if node_path == name_path
+            for node_id, node_path in self.tree_paths.items()
+            if node_path == path
         ]
 
   # Load files into internal state
@@ -367,7 +367,7 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
           Data about how pieces fit together
           Keyed by node id
 
-        name_path, proxy_filenames
+        tree_paths, proxy_filenames
           Data about how nodes can be addressed
           Keyed by node id
 
@@ -376,7 +376,7 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
         self.nodes = {}
         self.structure = {'__root': []}
         self.proxy_filenames = []
-        self.name_path = {'__root': []}
+        self.tree_paths = {'__root': []}
         self.filename_by_id = {}
 
     def _load_index(self) -> None:
@@ -404,7 +404,7 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
 
         for section in self.file_data['mindly.index']['sections']:
             section_id = section['identifier']
-            self.name_path[section_id] = [section['text']]
+            self.tree_paths[section_id] = [section['text']]
 
             # Sections are children of imaginary '__root' node
             self.structure['__root'].append(section_id)
@@ -476,7 +476,7 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
 
         :param id_path: List of ids corresponding to the current
                           node's ancestry
-                        See Mindly.id_path & Mindly.name_path
+                        See Mindly.tree_paths
                           in the README for further discussion
         :type id_path: list
 
@@ -488,7 +488,7 @@ class Mindly:  # pylint: disable=too-many-instance-attributes
         node_id = node['identifier']
 
         nodes = {node_id: node}
-        self.name_path[node_id] = self.name_path[id_path[-2]] + [node['text']]
+        self.tree_paths[node_id] = self.tree_paths[id_path[-2]] + [node['text']]
 
         if not node.get('ideas'):
             return nodes
